@@ -1,0 +1,4 @@
+account-notify.pl - incomplete support for account-notify capability on charybdis family ircds
+autorelease.pl    - script to automatically recover registered nicknames when connecting to networks with Atheme services
+cap-extjoin.pl    - support for extended-join capability on charybdis family ircds
+format_quiet.pl   - correctly format RPL_QUIETLIST entries on charybdis family ircds
