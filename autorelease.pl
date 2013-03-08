@@ -16,7 +16,7 @@ $VERSION = "0.1";
     description => 'Automatically recovers enforced nicks when connecting to freenode.
                     May work on other networks running Atheme services and charybdis family ircds.
                     This script assumes the user is using PASS or CAP SASL to authenticate'
-    license     => 'GNU General Public License'
+    license     => 'GPLv2'
 );
 
 my ($recovering,$sasl);
