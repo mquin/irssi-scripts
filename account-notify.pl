@@ -1,4 +1,7 @@
 #!/usr/bin/perl
+# (C) 2012 Mike Quin <mike@elite.uk.com>
+# Based on format_identify.pl by ResDev (Ben Reser)
+# Licensed under the GNU General Public License Version 2 ( https://www.gnu.org/licenses/gpl-2.0.html )
 
 use Irssi qw(signal_stop signal_emit signal_remove
              signal_add signal_add_first
