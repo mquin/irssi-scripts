@@ -8,6 +8,7 @@ use Irssi qw(signal_stop signal_emit signal_remove
              settings_add_str settings_get_str settings_add_bool
 	     settings_get_bool
              print );
+use Data::Dumper;
 use strict;
 
 my %account_data;
@@ -24,13 +25,25 @@ my(@format_identify_message_formats) = qw(pubmsg pubmsg_channel msg_private
                                          );
 
 
-sub msg_join {
+sub event_join {
   my $target;
-  my ($server, $channame, $nick, $host) = @_;
+  my ($server, $data, $nick, $host) = @_;
+  my ($channel, $account, $realname);
+    Irssi::print("JOIN data: $data") if(settings_get_bool('account_notify_debug'));
+  if ($data=~/(\S+) (\S+) :(.*)/) {
+    $channel=$1;
+    $account=$2;
+    $realname=$3;
+  } elsif ($data=~/:(\S+)/) {
+   Irssi::print("Warning: recieved non-extended JOIN message - account data may be wrong (account-notify.pl)");
+   return;
+  } 
+
   if ($nick eq $server->{nick}) {
-    $target=$channame;
+    $target=$channel;
   } else {
-    $target=$nick;
+    $account_data{$nick}=$account;
+    return;
   }
 
   $server->redirect_event(
@@ -46,7 +59,7 @@ sub msg_join {
 
 sub event_account {
   my ($server, $account, $nick, $mask) = @_;
-  Irssi::print("$nick is now authenticated as $account");
+  Irssi::print("$nick is now authenticated as $account") if(settings_get_bool('account_notify_debug'));
   if ($account eq '*') { 
     delete $account_data{$nick};
   } else {  
@@ -58,10 +71,10 @@ sub event_354 {
   my ($me, $nick, $account) = split(/ +/, $data, 7);
   if ($account eq '0') {
     delete $account_data{$nick};
-    Irssi::print("$nick is not authenticated");
+    Irssi::print("$nick is not authenticated") if(settings_get_bool('account_notify_debug'));
   } else {
     $account_data{$nick}=$account;
-    Irssi::print("$nick is authenticated as $account");
+    Irssi::print("$nick is authenticated as $account") if(settings_get_bool('account_notify_debug'));
   }
 }
 
@@ -131,11 +144,11 @@ sub msg_quit {
 
 sub account_notify_connected {
   my $server = shift;
-  $server->command("^quote cap req :account-notify");
+  $server->command("^quote cap req :account-notify extended-join");
 }
 
 Irssi::signal_add( {
-		    'message join' => \&msg_join,
+		    'event join' => \&event_join,
 		    'event account' => \&event_account,
 		    'redir account-notify_354' => \&event_354,
 		    'event privmsg', 'format_account_notify_message',
@@ -179,6 +192,7 @@ settings_add_str('format_identify','format_identified_nick','$0');
 settings_add_str('format_identify','format_unidentified_nick','~$0');
 settings_add_str('format_identify','format_unknown_nick','$0');
 settings_add_bool('format_identify','format_colour',0);
+settings_add_bool('format_identify','account_notify_debug',0);
 
 # What we use for the formats...
 # Don't modify here, use the /set command or modify in the ~/.irssi/config file.
