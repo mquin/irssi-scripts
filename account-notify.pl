@@ -49,7 +49,7 @@ sub event_join {
       $account_data{$nick}{'account'}=$account;
       Irssi::print("$nick is now authenticated as $account") if(settings_get_bool('account_notify_debug'));
     }
-    $account_data{$nick}{'chancount'}++;
+    $account_data{$nick}{'channels'}{$channel}=1;
     return;
   }
 
@@ -61,7 +61,7 @@ sub event_join {
 			  }
 			 );
 
-  $server->send_raw("WHO $target %na");
+  $server->send_raw("WHO $target %cna");
 }
 
 sub event_account {
@@ -76,7 +76,8 @@ sub event_account {
 }
 sub event_354 {
   my ($server, $data) = @_;
-  my ($me, $nick, $account) = split(/ +/, $data, 7);
+  my ($me, $channel, $nick, $account) = split(/ +/, $data, 7);
+  return if ($nick eq $me);
   if ($account eq '0') {
     delete $account_data{'account'}{$nick};
     Irssi::print("$nick is not authenticated") if(settings_get_bool('account_notify_debug'));
@@ -84,6 +85,7 @@ sub event_354 {
     $account_data{$nick}{'account'}=$account;
     Irssi::print("$nick is authenticated as $account") if(settings_get_bool('account_notify_debug'));
   }
+  $account_data{$nick}{'channels'}{$channel}=1;
 }
 
 sub format_account_notify_message {
@@ -155,10 +157,21 @@ sub msg_quit {
 
 sub msg_part {   
   my ($server, $channel, $nick, $address, $data) = @_;
+  if ($nick eq $server->{nick}) {
+    foreach my $account (keys %account_data) {
+      delete $account_data{$account}{'channels'}{$channel};
+      if (keys $account_data{$account}{'channels'} == 0) {
+        delete $account_data{$account};
+        Irssi::print("$account is no longer in any shared channels, deleting record") if(settings_get_bool('account_notify_debug'));
+      }
+    }
+    return;
+  }
   if ($account_data{$nick}) {
-    $account_data{$nick}{'chancount'}--;
+    delete $account_data{$nick}{'channels'}{$channel};
   }   
-  if ($account_data{$nick}{'chancount'} == 0) {
+  Irssi::print(keys $account_data{$nick}{'channels'});
+  if (keys $account_data{$nick}{'channels'} == 0) {
     delete $account_data{$nick};
     Irssi::print("$nick is no longer in any shared channels, deleting record") if(settings_get_bool('account_notify_debug'));
   }
@@ -197,7 +210,7 @@ sub account_notify_cap_reply{
                            ""          => "event empty"
                           }
             );
-            $server->send_raw("WHO $target %na");
+            $server->send_raw("WHO $target %cna");
           }
 	}
 }
