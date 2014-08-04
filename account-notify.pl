@@ -14,6 +14,7 @@ use strict;
 my %account_data;
 my %saved_colors;
 my %session_colors = {};
+my %servers;
 my @colors = qw/2 4 8 9 13 15/;
 my(@format_identify_message_formats) = qw(pubmsg pubmsg_channel msg_private
                                           msg_private_query pubmsg_hilight
@@ -170,6 +171,39 @@ sub account_notify_connected {
   $server->command("^quote cap req :account-notify extended-join");
 }
 
+sub account_notify_cap_reply{
+        my ($server, $data, $server_name) = @_;
+        unless (ref($servers{$server->{tag}}) eq 'HASH') {
+                $servers{$server->{tag}} = {};
+                $servers{$server->{tag}}->{'ACCOUNT-NOTIFY'} = 0;
+                $servers{$server->{tag}}->{'EXTENDED-JOIN'} = 0;
+                $servers{$server->{tag}}->{'USES-CAP'} = 0;
+        }
+        if ($data =~ /ACK :.*account-notify/) {
+                $servers{$server->{tag}}->{'ACCOUNT-NOTIFY'} = 1;
+                $servers{$server->{tag}}->{'USES-CAP'} = 1;
+        }
+        if ($data =~ /ACK :.*extended-join/) {
+                $servers{$server->{tag}}->{'EXTENDED-JOIN'} = 1;
+                $servers{$server->{tag}}->{'USES-CAP'} = 1;
+        }
+	if ( $servers{$server->{tag}}->{'ACCOUNT-NOTIFY'}  && $servers{$server->{tag}}->{'EXTENDED-JOIN'} ) {
+          Irssi::print("Both CAPS enabled");
+          for my $channel ($server->channels()) {
+            my $target=$channel->{'name'};
+            $server->redirect_event(
+                          'who', 1, '', 1, undef,
+                          {
+                           "event 354" => "redir account-notify_354",
+                           ""          => "event empty"
+                          }
+            );
+            $server->send_raw("WHO $target %na");
+          }
+	}
+}
+
+
 Irssi::signal_add( {
 		    'event join' => \&event_join,
 		    'event account' => \&event_account,
@@ -178,8 +212,10 @@ Irssi::signal_add( {
 		    'message nick', \&msg_nick,
 		    'message quit', \&msg_quit,
                     'message part', \&msg_part,
-		    'event connected', \&account_notify_connected
+		    'event connected', \&account_notify_connected,
+                    'event cap', \&account_notify_cap_reply
 		   });
+
 sub simple_hash {
   my ($string) = @_;
   chomp $string;
@@ -216,6 +252,10 @@ sub irclc {
   return $s;
 }
 
+foreach my $server (Irssi::servers()) {
+        %servers = ();
+        account_notify_connected($server);
+}
 
 # How we format the nick.  $0 is the nick we'll be formating.
 settings_add_str('format_identify','format_identified_nick','$0');
