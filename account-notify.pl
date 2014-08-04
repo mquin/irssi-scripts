@@ -78,7 +78,7 @@ sub event_account {
 sub event_354 {
   my ($server, $data) = @_;
   my ($me, $nick, $account) = split(/ +/, $data, 7);
-  if ($account eq '*') {
+  if ($account eq '0') {
     delete $account_data{'account'}{$nick};
     Irssi::print("$nick is not authenticated") if(settings_get_bool('account_notify_debug'));
   } else {
