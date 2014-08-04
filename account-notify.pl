@@ -170,7 +170,6 @@ sub msg_part {
   if ($account_data{$nick}) {
     delete $account_data{$nick}{'channels'}{$channel};
   }   
-  Irssi::print(keys $account_data{$nick}{'channels'});
   if (keys $account_data{$nick}{'channels'} == 0) {
     delete $account_data{$nick};
     Irssi::print("$nick is no longer in any shared channels, deleting record") if(settings_get_bool('account_notify_debug'));
