@@ -66,7 +66,6 @@ sub event_join {
 
 sub event_account {
   my ($server, $account, $nick, $mask) = @_;
-  Irssi::print("$nick is now authenticated as $account") if(settings_get_bool('account_notify_debug'));
   if ($account eq '*') { 
     delete $account_data{$nick}{'account'};
     Irssi::print("$nick is not authenticated") if(settings_get_bool('account_notify_debug'));
