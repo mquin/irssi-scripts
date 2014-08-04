@@ -42,12 +42,13 @@ sub event_join {
     $target=$channel;
   } else {
     if ($account eq '*') {
-      delete $account_data{$nick};
+      delete $account_data{$nick}{'account'};
       Irssi::print("$nick is not authenticated") if(settings_get_bool('account_notify_debug'));
     } else {
-      $account_data{$nick}=$account;
+      $account_data{$nick}{'account'}=$account;
       Irssi::print("$nick is now authenticated as $account") if(settings_get_bool('account_notify_debug'));
     }
+    $account_data{$nick}{'chancount'}++;
     return;
   }
 
@@ -66,10 +67,10 @@ sub event_account {
   my ($server, $account, $nick, $mask) = @_;
   Irssi::print("$nick is now authenticated as $account") if(settings_get_bool('account_notify_debug'));
   if ($account eq '*') { 
-    delete $account_data{$nick};
+    delete $account_data{$nick}{'account'};
     Irssi::print("$nick is not authenticated") if(settings_get_bool('account_notify_debug'));
   } else {  
-    $account_data{$nick}=$account;
+    $account_data{$nick}{'account'}=$account;
     Irssi::print("$nick is authenticated as $account") if(settings_get_bool('account_notify_debug'));
   }
 }
@@ -77,10 +78,10 @@ sub event_354 {
   my ($server, $data) = @_;
   my ($me, $nick, $account) = split(/ +/, $data, 7);
   if ($account eq '*') {
-    delete $account_data{$nick};
+    delete $account_data{'account'}{$nick};
     Irssi::print("$nick is not authenticated") if(settings_get_bool('account_notify_debug'));
   } else {
-    $account_data{$nick}=$account;
+    $account_data{$nick}{'account'}=$account;
     Irssi::print("$nick is authenticated as $account") if(settings_get_bool('account_notify_debug'));
   }
 }
@@ -89,13 +90,13 @@ sub format_account_notify_message {
   my ($server, $data, $nick, $address) = @_;
   my ($channel, $msg) = split(/ :/, $data,2);
   my $chanref=$server->channel_find($channel);
-  if ($account_data{$nick}) {
+  if ($account_data{$nick}{'account'}) {
   }
   foreach my $format (@format_identify_message_formats) {
-    if ($account_data{$nick} eq $nick) {
+    if (irclc($account_data{$nick}{'account'}) eq irclc($nick)) {
       update_format_identify($server,$format,colourise($nick).'$0');
-    } elsif ($account_data{$nick}) {
-      update_format_identify($server,$format,colourise($nick). '$0' . "($account_data{$nick})");
+    } elsif ($account_data{$nick}{'account'}) {
+      update_format_identify($server,$format,colourise($nick). '$0' . "($account_data{$nick}{'account'})");
     } else {
       update_format_identify($server,$format,colourise($nick).'~$0');
     }
@@ -127,8 +128,8 @@ sub format_identify_rewrite {
 # Issue the format update after generating the new format.
 sub update_format_identify {
   my ($server,$entry,$nick) = @_;
-  if ($account_data{$nick}) {
-    $nick="$nick($account_data{$nick})";
+  if ($account_data{$nick}{'account'}) {
+    $nick="$nick($account_data{$nick}{'account'})";
   }
 
   my $identify_format = settings_get_str("${entry}_identify");
@@ -148,8 +149,21 @@ sub msg_quit {
   my ($server, $nick, $address, $data) = @_;
   if ($account_data{$nick}) {
     delete $account_data{$nick};
+    Irssi::print("$nick has quit IRC, deleting record") if(settings_get_bool('account_notify_debug'));                                                   
   }
 }
+
+sub msg_part {   
+  my ($server, $channel, $nick, $address, $data) = @_;
+  if ($account_data{$nick}) {
+    $account_data{$nick}{'chancount'}--;
+  }   
+  if ($account_data{$nick}{'chancount'} == 0) {
+    delete $account_data{$nick};
+    Irssi::print("$nick is no longer in any shared channels, deleting record") if(settings_get_bool('account_notify_debug'));
+  }
+}
+
 
 sub account_notify_connected {
   my $server = shift;
@@ -162,7 +176,8 @@ Irssi::signal_add( {
 		    'redir account-notify_354' => \&event_354,
 		    'event privmsg', 'format_account_notify_message',
 		    'message nick', \&msg_nick,
-		    'message nick', \&msg_quit,
+		    'message quit', \&msg_quit,
+                    'message part', \&msg_part,
 		    'event connected', \&account_notify_connected
 		   });
 sub simple_hash {
@@ -192,6 +207,13 @@ sub colourise {
   }
   $color = "0".$color if ($color < 10);
   return chr(3).$color;
+}
+
+sub irclc {
+  # converts a string to lower case, using rfc1459 casemapping
+  my $s=shift;
+  $s=~tr/A-Z[]\^/a-z{}|~/;
+  return $s;
 }
 
 
