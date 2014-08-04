@@ -29,7 +29,6 @@ sub event_join {
   my $target;
   my ($server, $data, $nick, $host) = @_;
   my ($channel, $account, $realname);
-    Irssi::print("JOIN data: $data") if(settings_get_bool('account_notify_debug'));
   if ($data=~/(\S+) (\S+) :(.*)/) {
     $channel=$1;
     $account=$2;
@@ -42,7 +41,13 @@ sub event_join {
   if ($nick eq $server->{nick}) {
     $target=$channel;
   } else {
-    $account_data{$nick}=$account;
+    if ($account eq '*') {
+      delete $account_data{$nick};
+      Irssi::print("$nick is not authenticated") if(settings_get_bool('account_notify_debug'));
+    } else {
+      $account_data{$nick}=$account;
+      Irssi::print("$nick is now authenticated as $account") if(settings_get_bool('account_notify_debug'));
+    }
     return;
   }
 
@@ -62,14 +67,16 @@ sub event_account {
   Irssi::print("$nick is now authenticated as $account") if(settings_get_bool('account_notify_debug'));
   if ($account eq '*') { 
     delete $account_data{$nick};
+    Irssi::print("$nick is not authenticated") if(settings_get_bool('account_notify_debug'));
   } else {  
     $account_data{$nick}=$account;
+    Irssi::print("$nick is authenticated as $account") if(settings_get_bool('account_notify_debug'));
   }
 }
 sub event_354 {
   my ($server, $data) = @_;
   my ($me, $nick, $account) = split(/ +/, $data, 7);
-  if ($account eq '0') {
+  if ($account eq '*') {
     delete $account_data{$nick};
     Irssi::print("$nick is not authenticated") if(settings_get_bool('account_notify_debug'));
   } else {
@@ -85,10 +92,12 @@ sub format_account_notify_message {
   if ($account_data{$nick}) {
   }
   foreach my $format (@format_identify_message_formats) {
-    if ($account_data{$nick}) {
+    if ($account_data{$nick} eq $nick) {
+      update_format_identify($server,$format,colourise($nick).'$0');
+    } elsif ($account_data{$nick}) {
       update_format_identify($server,$format,colourise($nick). '$0' . "($account_data{$nick})");
     } else {
-      update_format_identify($server,$format,colourise($nick).'$0');
+      update_format_identify($server,$format,colourise($nick).'~$0');
     }
   }
   format_identify_rewrite('event privmsg','format_account_notify_message', $server,$data,$nick,$address);
@@ -156,7 +165,6 @@ Irssi::signal_add( {
 		    'message nick', \&msg_quit,
 		    'event connected', \&account_notify_connected
 		   });
-
 sub simple_hash {
   my ($string) = @_;
   chomp $string;
