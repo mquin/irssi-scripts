@@ -176,6 +176,10 @@ sub msg_part {
   }
 }
 
+sub msg_kick {
+  my ($server, $channel, $nick, $kicker, $address, $data) = @_;
+  msg_part($server, $channel, $nick, $address, $data);
+}
 
 sub account_notify_connected {
   my $server = shift;
@@ -223,6 +227,7 @@ Irssi::signal_add( {
 		    'message nick', \&msg_nick,
 		    'message quit', \&msg_quit,
                     'message part', \&msg_part,
+                    'message kick', \&msg_kick,
 		    'event connected', \&account_notify_connected,
                     'event cap', \&account_notify_cap_reply
 		   });
