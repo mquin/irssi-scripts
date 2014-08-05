@@ -92,8 +92,6 @@ sub format_account_notify_message {
   my ($server, $data, $nick, $address) = @_;
   my ($channel, $msg) = split(/ :/, $data,2);
   my $chanref=$server->channel_find($channel);
-  if ($account_data{$nick}{'account'}) {
-  }
   foreach my $format (@format_identify_message_formats) {
     if (irclc($account_data{$nick}{'account'}) eq irclc($nick)) {
       update_format_identify($server,$format,colourise($nick).'$0');
