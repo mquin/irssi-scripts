@@ -79,7 +79,7 @@ sub event_354 {
   my ($me, $channel, $nick, $account) = split(/ +/, $data, 7);
   return if ($nick eq $me);
   if ($account eq '0') {
-    delete $account_data{'account'}{$nick};
+    delete $account_data{$nick}{'account'};
     Irssi::print("$nick is not authenticated") if(settings_get_bool('account_notify_debug'));
   } else {
     $account_data{$nick}{'account'}=$account;
