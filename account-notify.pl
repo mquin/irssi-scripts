@@ -130,9 +130,6 @@ sub format_identify_rewrite {
 # Issue the format update after generating the new format.
 sub update_format_identify {
   my ($server,$entry,$nick) = @_;
-  if ($account_data{$nick}{'account'}) {
-    $nick="$nick($account_data{$nick}{'account'})";
-  }
 
   my $identify_format = settings_get_str("${entry}_identify");
   my $replaced_format = replace_format_identify($identify_format,$nick);
@@ -142,8 +139,7 @@ sub update_format_identify {
 sub msg_nick {
   my ($server, $newnick, $nick, $address) = @_;
   if ($account_data{$nick}) {
-    $account_data{$newnick}=$account_data{$nick};
-    delete $account_data{$nick};
+    $account_data{$newnick}=delete $account_data{$nick};
   }
 }
 
@@ -170,7 +166,7 @@ sub msg_part {
   if ($account_data{$nick}) {
     delete $account_data{$nick}{'channels'}{$channel};
   }   
-  if (keys $account_data{$nick}{'channels'} == 0) {
+  if (ref($account_data{$nick}{'channels'}) && keys $account_data{$nick}{'channels'} == 0) {
     delete $account_data{$nick};
     Irssi::print("$nick is no longer in any shared channels, deleting record") if(settings_get_bool('account_notify_debug'));
   }
