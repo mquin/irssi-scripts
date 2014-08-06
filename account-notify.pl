@@ -22,7 +22,7 @@ my(@format_identify_message_formats) = qw(pubmsg pubmsg_channel msg_private
                                           action_private_query action_public
                                           action_public_channel ctcp_requested
                                           ctcp_requested_unknown pubmsg_me
-                                          pubmsg_me_channel
+                                          pubmsg_me_channel notice_public notice_private
                                          );
 
 
@@ -90,8 +90,31 @@ sub event_354 {
 
 sub format_account_notify_message {
   my ($server, $data, $nick, $address) = @_;
-  my ($channel, $msg) = split(/ :/, $data,2);
-  my $chanref=$server->channel_find($channel);
+  update_all_formats($server,$nick);
+  format_identify_rewrite('event privmsg','format_account_notify_message', $server,$data,$nick,$address);
+}
+
+sub format_account_notify_ctcp {
+  my ($server, $data, $nick, $address, $target) = @_;
+  update_all_formats($server,$nick);
+  format_identify_rewrite('ctcp msg','format_account_notify_ctcp', $server,$data,$nick,$address,$target);
+}
+
+sub format_account_notify_ctcp_reply {
+  my ($server, $data, $nick, $address, $target) = @_;
+  update_all_formats($server,$nick);
+  format_identify_rewrite('ctcp reply','format_account_notify_ctcp_reply', $server,$data,$nick,$address,$target);
+}
+
+
+sub format_account_notify_notice {
+  my ($server, $data, $nick, $address, $target) = @_;
+  update_all_formats($server,$nick);
+  format_identify_rewrite('event notice','format_account_notify_notice', $server,$data,$nick,$address,$target);
+}
+
+sub update_all_formats {
+  my ($server,$nick) = @_;
   foreach my $format (@format_identify_message_formats) {
     if (irclc($account_data{$nick}{'account'}) eq irclc($nick)) {
       update_format_identify($server,$format,colourise($nick).'$0');
@@ -101,7 +124,6 @@ sub format_account_notify_message {
       update_format_identify($server,$format,colourise($nick).'~$0');
     }
   }
-  format_identify_rewrite('event privmsg','format_account_notify_message', $server,$data,$nick,$address);
 }
 
 sub replace_format_identify {
@@ -218,6 +240,9 @@ Irssi::signal_add( {
 		    'event account' => \&event_account,
 		    'redir account-notify_354' => \&event_354,
 		    'event privmsg', 'format_account_notify_message',
+                    'event notice', 'format_account_notify_notice',
+                    'ctcp msg', 'format_account_notify_ctcp',
+                    'ctcp reply', 'format_account_notify_ctcp_reply',
 		    'message nick', \&msg_nick,
 		    'message quit', \&msg_quit,
                     'message part', \&msg_part,
