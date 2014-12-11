@@ -305,8 +305,8 @@ settings_add_str('format_identify','pubmsg_identify','{pubmsgnick $2 {pubnick {f
 settings_add_str('format_identify','pubmsg_channel_identify','{pubmsgnick $3 {pubnick {format_identify $0}}{msgchannel $1}}$2');
 settings_add_str('format_identify','msg_private_identify','{privmsg {format_identify $0} $1 }$2');
 settings_add_str('format_identify','msg_private_query_identify','{privmsgnick {format_identify $0}}$2');
-settings_add_str('format_identify','pubmsg_hilight_identify','{pubmsghinick {format_identify $0} $3 $1}$2');
-settings_add_str('format_identify','pubmsg_hilight_channel_identify','{pubmsghinick {format_identify $0} $4 $1{msgchannel $2}$3');
+settings_add_str('format_identify','pubmsg_hilight_identify','{pubmsghinick {format_identify $3$1} $0 }$2');
+settings_add_str('format_identify','pubmsg_hilight_channel_identify','{pubmsghinick {format_identify $4$1:$2} $0 }$3');
 settings_add_str('format_identify','action_private_identify','{pvtaction {format_identify $0}}$2');
 settings_add_str('format_identify','action_private_query_identify','{pvtaction_query {format_identify $0}}$2');
 settings_add_str('format_identify','action_public_identify','{pubaction {format_identify $0}}$1');
