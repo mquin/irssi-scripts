@@ -16,7 +16,7 @@ my %saved_colors;
 my %session_colors = {};
 my %servers;
 my @colors = qw/2 4 8 9 13 15/;
-my(@format_identify_message_formats) = qw(pubmsg pubmsg_channel msg_private
+my(@account_notify_message_formats) = qw(pubmsg pubmsg_channel msg_private
                                           msg_private_query pubmsg_hilight
                                           pubmsg_hilight_channel action_private
                                           action_private_query action_public
@@ -91,52 +91,52 @@ sub event_354 {
 sub format_account_notify_message {
   my ($server, $data, $nick, $address) = @_;
   update_all_formats($server,$nick);
-  format_identify_rewrite('event privmsg','format_account_notify_message', $server,$data,$nick,$address);
+  account_notify_rewrite('event privmsg','format_account_notify_message', $server,$data,$nick,$address);
 }
 
 sub format_account_notify_ctcp {
   my ($server, $data, $nick, $address, $target) = @_;
   update_all_formats($server,$nick);
-  format_identify_rewrite('ctcp msg','format_account_notify_ctcp', $server,$data,$nick,$address,$target);
+  account_notify_rewrite('ctcp msg','format_account_notify_ctcp', $server,$data,$nick,$address,$target);
 }
 
 sub format_account_notify_ctcp_reply {
   my ($server, $data, $nick, $address, $target) = @_;
   update_all_formats($server,$nick);
-  format_identify_rewrite('ctcp reply','format_account_notify_ctcp_reply', $server,$data,$nick,$address,$target);
+  account_notify_rewrite('ctcp reply','format_account_notify_ctcp_reply', $server,$data,$nick,$address,$target);
 }
 
 
 sub format_account_notify_notice {
   my ($server, $data, $nick, $address, $target) = @_;
   update_all_formats($server,$nick);
-  format_identify_rewrite('event notice','format_account_notify_notice', $server,$data,$nick,$address,$target);
+  account_notify_rewrite('event notice','format_account_notify_notice', $server,$data,$nick,$address,$target);
 }
 
 sub update_all_formats {
   my ($server,$nick) = @_;
-  foreach my $format (@format_identify_message_formats) {
+  foreach my $format (@account_notify_message_formats) {
     if (irclc($account_data{$nick}{'account'}) eq irclc($nick)) {
-      update_format_identify($server,$format,colourise($nick).'$0');
+      update_account_notify($server,$format,colourise($nick).'$0');
     } elsif ($account_data{$nick}{'account'}) {
-      update_format_identify($server,$format,colourise($nick). '$0' . "($account_data{$nick}{'account'})");
+      update_account_notify($server,$format,colourise($nick). '$0' . "($account_data{$nick}{'account'})");
     } else {
-      update_format_identify($server,$format,colourise($nick).'~$0');
+      update_account_notify($server,$format,colourise($nick).'~$0');
     }
   }
 }
 
-sub replace_format_identify {
+sub replace_account_notify {
   my ($format, $entry) = @_;
 
-  my ($nickarg) = $format =~ /{\s*format_identify\s+?([^\s]+?)\s*}/;
+  my ($nickarg) = $format =~ /{\s*account_notify\s+?([^\s]+?)\s*}/;
   $entry =~ s/\$0/$nickarg/;
-  $format =~ s/{\s*format_identify\s+?[^\s]+?\s*}/$entry/g;
+  $format =~ s/{\s*account_notify\s+?[^\s]+?\s*}/$entry/g;
   return $format;
 }
 
 # rewrite the message now that we've updated the formats
-sub format_identify_rewrite {
+sub account_notify_rewrite {
   my $signal = shift;
   my $proc = shift;
 
@@ -148,11 +148,11 @@ sub format_identify_rewrite {
 
   
 # Issue the format update after generating the new format.
-sub update_format_identify {
+sub update_account_notify {
   my ($server,$entry,$nick) = @_;
 
   my $identify_format = settings_get_str("${entry}_identify");
-  my $replaced_format = replace_format_identify($identify_format,$nick);
+  my $replaced_format = replace_account_notify($identify_format,$nick);
   $server->command("^format $entry " . $replaced_format);
 }
 
@@ -293,30 +293,30 @@ foreach my $server (Irssi::servers()) {
 }
 
 # How we format the nick.  $0 is the nick we'll be formating.
-settings_add_str('format_identify','format_identified_nick','$0');
-settings_add_str('format_identify','format_unidentified_nick','~$0');
-settings_add_str('format_identify','format_unknown_nick','$0');
-settings_add_bool('format_identify','format_colour',0);
-settings_add_bool('format_identify','account_notify_debug',0);
+settings_add_str('account_notify','format_identified_nick','$0');
+settings_add_str('account_notify','format_unidentified_nick','~$0');
+settings_add_str('account_notify','format_unknown_nick','$0');
+settings_add_bool('account_notify','format_colour',0);
+settings_add_bool('account_notify','account_notify_debug',0);
 
 # What we use for the formats...
 # Don't modify here, use the /set command or modify in the ~/.irssi/config file.
-settings_add_str('format_identify','pubmsg_identify','{pubmsgnick $2 {pubnick {format_identify $0}}}$1');
-settings_add_str('format_identify','pubmsg_channel_identify','{pubmsgnick $3 {pubnick {format_identify $0}}{msgchannel $1}}$2');
-settings_add_str('format_identify','msg_private_identify','{privmsg {format_identify $0} $1 }$2');
-settings_add_str('format_identify','msg_private_query_identify','{privmsgnick {format_identify $0}}$2');
-settings_add_str('format_identify','pubmsg_hilight_identify','{pubmsghinick {format_identify $3$1} $0 }$2');
-settings_add_str('format_identify','pubmsg_hilight_channel_identify','{pubmsghinick {format_identify $4$1:$2} $0 }$3');
-settings_add_str('format_identify','action_private_identify','{pvtaction {format_identify $0}}$2');
-settings_add_str('format_identify','action_private_query_identify','{pvtaction_query {format_identify $0}}$2');
-settings_add_str('format_identify','action_public_identify','{pubaction {format_identify $0}}$1');
-settings_add_str('format_identify','action_public_channel_identify', '{pubaction {format_identify $0}{msgchannel $1}}$2');
-settings_add_str('format_identify','ctcp_requested_identify','{ctcp {hilight {format_identify $0}} {comment $1} requested CTCP {hilight $2} from {nick $4}}: $3');
-settings_add_str('format_identify','ctcp_requested_unknown_identify','{ctcp {hilight {format_identify $0}} {comment $1} requested unknown CTCP {hilight $2} from {nick $4}}: $3');
-settings_add_str('format_identify','pubmsg_me_identify','{pubmsgmenick $2 {menick {format_identify $0}}}$1');
-settings_add_str('format_identify','pubmsg_me_channel_identify','{pubmsgmenick $3 {menick {format_identify $0}}{msgchannel $1}}$2');
-settings_add_str('format_identify','notice_public_identify','{notice {format_identify $0}{pubnotice_channel $1}}$2');
-settings_add_str('format_identify','notice_private_identify','{notice {format_identify $0}{pvtnotice_host $1}}$2');
-settings_add_str('format_identify','ctcp_reply_identify','CTCP {hilight $0} reply from {nick {format_identify $1}}: $2');
-settings_add_str('format_identify','ctcp_reply_channel_identify','CTCP {hilight $0} reply from {nick {format_identify $1}} in channel {channel $3}: $2');
-settings_add_str('format_identify','ctcp_ping_reply_identify','CTCP {hilight PING} reply from {nick {format_identify $0}}: $1.$[-3.0]2 seconds');
+settings_add_str('account_notify','pubmsg_identify','{pubmsgnick $2 {pubnick {account_notify $0}}}$1');
+settings_add_str('account_notify','pubmsg_channel_identify','{pubmsgnick $3 {pubnick {account_notify $0}}{msgchannel $1}}$2');
+settings_add_str('account_notify','msg_private_identify','{privmsg {account_notify $0} $1 }$2');
+settings_add_str('account_notify','msg_private_query_identify','{privmsgnick {account_notify $0}}$2');
+settings_add_str('account_notify','pubmsg_hilight_identify','{pubmsghinick {account_notify $3$1} $0 }$2');
+settings_add_str('account_notify','pubmsg_hilight_channel_identify','{pubmsghinick {account_notify $4$1:$2} $0 }$3');
+settings_add_str('account_notify','action_private_identify','{pvtaction {account_notify $0}}$2');
+settings_add_str('account_notify','action_private_query_identify','{pvtaction_query {account_notify $0}}$2');
+settings_add_str('account_notify','action_public_identify','{pubaction {account_notify $0}}$1');
+settings_add_str('account_notify','action_public_channel_identify', '{pubaction {account_notify $0}{msgchannel $1}}$2');
+settings_add_str('account_notify','ctcp_requested_identify','{ctcp {hilight {account_notify $0}} {comment $1} requested CTCP {hilight $2} from {nick $4}}: $3');
+settings_add_str('account_notify','ctcp_requested_unknown_identify','{ctcp {hilight {account_notify $0}} {comment $1} requested unknown CTCP {hilight $2} from {nick $4}}: $3');
+settings_add_str('account_notify','pubmsg_me_identify','{pubmsgmenick $2 {menick {account_notify $0}}}$1');
+settings_add_str('account_notify','pubmsg_me_channel_identify','{pubmsgmenick $3 {menick {account_notify $0}}{msgchannel $1}}$2');
+settings_add_str('account_notify','notice_public_identify','{notice {account_notify $0}{pubnotice_channel $1}}$2');
+settings_add_str('account_notify','notice_private_identify','{notice {account_notify $0}{pvtnotice_host $1}}$2');
+settings_add_str('account_notify','ctcp_reply_identify','CTCP {hilight $0} reply from {nick {account_notify $1}}: $2');
+settings_add_str('account_notify','ctcp_reply_channel_identify','CTCP {hilight $0} reply from {nick {account_notify $1}} in channel {channel $3}: $2');
+settings_add_str('account_notify','ctcp_ping_reply_identify','CTCP {hilight PING} reply from {nick {account_notify $0}}: $1.$[-3.0]2 seconds');
