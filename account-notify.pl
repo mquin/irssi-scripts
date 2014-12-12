@@ -176,7 +176,7 @@ sub msg_part {
   if ($nick eq $server->{nick}) {
     foreach my $account (keys %account_data) {
       delete $account_data{$account}{'channels'}{$channel};
-      if (keys $account_data{$account}{'channels'} == 0) {
+      if (keys %{ $account_data{$account}{'channels'} } == 0) {
         delete $account_data{$account};
         Irssi::print("$account is no longer in any shared channels, deleting record") if(settings_get_bool('account_notify_debug'));
       }
@@ -186,7 +186,7 @@ sub msg_part {
   if ($account_data{$nick}) {
     delete $account_data{$nick}{'channels'}{$channel};
   }   
-  if (ref($account_data{$nick}{'channels'}) && keys $account_data{$nick}{'channels'} == 0) {
+  if (ref($account_data{$nick}{'channels'}) && keys %{ $account_data{$nick}{'channels'} } == 0) {
     delete $account_data{$nick};
     Irssi::print("$nick is no longer in any shared channels, deleting record") if(settings_get_bool('account_notify_debug'));
   }
