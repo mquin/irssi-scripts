@@ -30,6 +30,7 @@ sub event_join {
   my $target;
   my ($server, $data, $nick, $host) = @_;
   my ($channel, $account, $realname);
+  return unless ($servers{$server->{tag}}->{'EXTENDED-JOIN'} == 1);
   if ($data=~/(\S+) (\S+) :(.*)/) {
     $channel=$1;
     $account=$2;
