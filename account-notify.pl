@@ -199,8 +199,13 @@ sub msg_kick {
 
 sub account_notify_connected {
   my $server = shift;
-  delete $servers{$server->{tag}};
   $server->command("^quote cap req :account-notify extended-join");
+}
+
+sub account_notify_disconnected {
+  my $server = shift;
+  delete $servers{$server->{tag}};
+  Irssi::print("Disconnected from " . $server->{tag} . ", deleting server record." ) if(settings_get_bool('account_notify_debug'));
 }
 
 sub account_notify_cap_reply{
@@ -249,6 +254,7 @@ Irssi::signal_add( {
                     'message part', \&msg_part,
                     'message kick', \&msg_kick,
 		    'event connected', \&account_notify_connected,
+                    'server disconnected', \&account_notify_disconnected,
                     'event cap', \&account_notify_cap_reply
 		   });
 
