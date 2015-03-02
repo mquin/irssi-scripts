@@ -11,7 +11,6 @@ use Irssi qw(signal_stop signal_emit signal_remove
 use Data::Dumper;
 use strict;
 
-my %account_data;
 my %saved_colors;
 my %session_colors = {};
 my %servers;
@@ -44,13 +43,13 @@ sub event_join {
     $target=$channel;
   } else {
     if ($account eq '*') {
-      delete $account_data{$nick}{'account'};
+      delete $servers{$server->{tag}}->{'account_data'}->{$nick}{'account'};
       Irssi::print("$nick is not authenticated") if(settings_get_bool('account_notify_debug'));
     } else {
-      $account_data{$nick}{'account'}=$account;
+      $servers{$server->{tag}}->{'account_data'}->{$nick}{'account'}=$account;
       Irssi::print("$nick is now authenticated as $account") if(settings_get_bool('account_notify_debug'));
     }
-    $account_data{$nick}{'channels'}{$channel}=1;
+    $servers{$server->{tag}}->{'account_data'}->{$nick}{'channels'}{$channel}=1;
     return;
   }
 
@@ -68,10 +67,10 @@ sub event_join {
 sub event_account {
   my ($server, $account, $nick, $mask) = @_;
   if ($account eq '*') { 
-    delete $account_data{$nick}{'account'};
+    delete $servers{$server->{tag}}->{'account_data'}->{$nick}{'account'};
     Irssi::print("$nick is not authenticated") if(settings_get_bool('account_notify_debug'));
   } else {  
-    $account_data{$nick}{'account'}=$account;
+    $servers{$server->{tag}}->{'account_data'}->{$nick}{'account'}=$account;
     Irssi::print("$nick is authenticated as $account") if(settings_get_bool('account_notify_debug'));
   }
 }
@@ -80,13 +79,13 @@ sub event_354 {
   my ($me, $channel, $nick, $account) = split(/ +/, $data, 7);
   return if ($nick eq $me);
   if ($account eq '0') {
-    delete $account_data{$nick}{'account'};
+    delete $servers{$server->{tag}}->{'account_data'}->{$nick}{'account'};
     Irssi::print("$nick is not authenticated") if(settings_get_bool('account_notify_debug'));
   } else {
-    $account_data{$nick}{'account'}=$account;
+    $servers{$server->{tag}}->{'account_data'}->{$nick}{'account'}=$account;
     Irssi::print("$nick is authenticated as $account") if(settings_get_bool('account_notify_debug'));
   }
-  $account_data{$nick}{'channels'}{$channel}=1;
+  $servers{$server->{tag}}->{'account_data'}->{$nick}{'channels'}{$channel}=1;
 }
 
 sub format_account_notify_message {
@@ -117,10 +116,10 @@ sub format_account_notify_notice {
 sub update_all_formats {
   my ($server,$nick) = @_;
   foreach my $format (@account_notify_message_formats) {
-    if (irclc($account_data{$nick}{'account'}) eq irclc($nick)) {
+    if (irclc($servers{$server->{tag}}->{'account_data'}->{$nick}{'account'}) eq irclc($nick)) {
       update_account_notify($server,$format,colourise($nick).'$0');
-    } elsif ($account_data{$nick}{'account'}) {
-      update_account_notify($server,$format,colourise($nick). '$0' . "($account_data{$nick}{'account'})");
+    } elsif ($servers{$server->{tag}}->{'account_data'}->{$nick}{'account'}) {
+      update_account_notify($server,$format,colourise($nick). '$0' . "($servers{$server->{tag}}->{'account_data'}->{$nick}{'account'})");
     } else {
       update_account_notify($server,$format,colourise($nick).'~$0');
     }
@@ -159,15 +158,15 @@ sub update_account_notify {
 
 sub msg_nick {
   my ($server, $newnick, $nick, $address) = @_;
-  if ($account_data{$nick}) {
-    $account_data{$newnick}=delete $account_data{$nick};
+  if ($servers{$server->{tag}}->{'account_data'}->{$nick}) {
+    $servers{$server->{tag}}->{'account_data'}->{$newnick}=delete $servers{$server->{tag}}->{'account_data'}->{$nick};
   }
 }
 
 sub msg_quit {
   my ($server, $nick, $address, $data) = @_;
-  if ($account_data{$nick}) {
-    delete $account_data{$nick};
+  if ($servers{$server->{tag}}->{'account_data'}->{$nick}) {
+    delete $servers{$server->{tag}}->{'account_data'}->{$nick};
     Irssi::print("$nick has quit IRC, deleting record") if(settings_get_bool('account_notify_debug'));                                                   
   }
 }
@@ -175,20 +174,20 @@ sub msg_quit {
 sub msg_part {   
   my ($server, $channel, $nick, $address, $data) = @_;
   if ($nick eq $server->{nick}) {
-    foreach my $account (keys %account_data) {
-      delete $account_data{$account}{'channels'}{$channel};
-      if (keys %{ $account_data{$account}{'channels'} } == 0) {
-        delete $account_data{$account};
+    foreach my $account (keys %servers{$server->{tag}}->{'account_data'}) {
+      delete $servers{$server->{tag}}->{'account_data'}->{$account}{'channels'}{$channel};
+      if (keys %{ $servers{$server->{tag}}->{'account_data'}->{$account}{'channels'} } == 0) {
+        delete $servers{$server->{tag}}->{'account_data'}->{$account};
         Irssi::print("$account is no longer in any shared channels, deleting record") if(settings_get_bool('account_notify_debug'));
       }
     }
     return;
   }
-  if ($account_data{$nick}) {
-    delete $account_data{$nick}{'channels'}{$channel};
+  if ($servers{$server->{tag}}->{'account_data'}->{$nick}) {
+    delete $servers{$server->{tag}}->{'account_data'}->{$nick}{'channels'}{$channel};
   }   
-  if (ref($account_data{$nick}{'channels'}) && keys %{ $account_data{$nick}{'channels'} } == 0) {
-    delete $account_data{$nick};
+  if (ref($servers{$server->{tag}}->{'account_data'}->{$nick}{'channels'}) && keys %{ $servers{$server->{tag}}->{'account_data'}->{$nick}{'channels'} } == 0) {
+    delete $servers{$server->{tag}}->{'account_data'}->{$nick};
     Irssi::print("$nick is no longer in any shared channels, deleting record") if(settings_get_bool('account_notify_debug'));
   }
 }
@@ -200,6 +199,7 @@ sub msg_kick {
 
 sub account_notify_connected {
   my $server = shift;
+  delete $servers{$server->{tag}};
   $server->command("^quote cap req :account-notify extended-join");
 }
 
