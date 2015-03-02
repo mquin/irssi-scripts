@@ -174,7 +174,7 @@ sub msg_quit {
 sub msg_part {   
   my ($server, $channel, $nick, $address, $data) = @_;
   if ($nick eq $server->{nick}) {
-    foreach my $account (keys %servers{$server->{tag}}->{'account_data'}) {
+    foreach my $account (keys %{ $servers{$server->{tag}}->{'account_data'} }) {
       delete $servers{$server->{tag}}->{'account_data'}->{$account}{'channels'}{$channel};
       if (keys %{ $servers{$server->{tag}}->{'account_data'}->{$account}{'channels'} } == 0) {
         delete $servers{$server->{tag}}->{'account_data'}->{$account};
