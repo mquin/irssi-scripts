@@ -26,7 +26,7 @@ sub event_quiet_list {
   if (defined $witem) {
     $witem->printformat(MSGLEVEL_CRAP, 'quietlist', $args[1], $args[3], $args[4], time()-$args[5] );
   } else {
-    $server->printformat($args[0], MSGLEVEL_CRAP, 'quietlist', $args[1], $args[3], $args[4], time()-$args[5] );
+    Irssi::printformat(MSGLEVEL_CRAP, 'quietlist', $args[1], $args[3], $args[4], time()-$args[5] );
   }
   Irssi::signal_stop();
 }
