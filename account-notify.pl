@@ -1,19 +1,18 @@
 #!/usr/bin/perl
-# (C) 2012 Mike Quin <mike@elite.uk.com>
+# (C) 2023 Mike Quin <mike@elite.uk.com>
 # Based on format_identify.pl by ResDev (Ben Reser)
 # Licensed under the GNU General Public License Version 2 ( https://www.gnu.org/licenses/gpl-2.0.html )
+# Requires Irssi > 1.4.1 with scrollback_format set to OFF
 
 use Irssi qw(signal_stop signal_emit signal_remove
              signal_add signal_add_first
              settings_add_str settings_get_str settings_add_bool
 	     settings_get_bool
              print );
-use Data::Dumper;
 use strict;
 
 my %saved_colors;
 my %session_colors = {};
-my %servers;
 my @colors = qw/2 4 8 9 13 15/;
 my(@account_notify_message_formats) = qw(pubmsg pubmsg_channel msg_private
                                           msg_private_query pubmsg_hilight
@@ -24,69 +23,6 @@ my(@account_notify_message_formats) = qw(pubmsg pubmsg_channel msg_private
                                           pubmsg_me_channel notice_public notice_private
                                          );
 
-
-sub event_join {
-  my $target;
-  my ($server, $data, $nick, $host) = @_;
-  my ($channel, $account, $realname);
-  return unless ($servers{$server->{tag}}->{'EXTENDED-JOIN'} == 1);
-  if ($data=~/(\S+) (\S+) :(.*)/) {
-    $channel=$1;
-    $account=$2;
-    $realname=$3;
-  } elsif ($data=~/:(\S+)/) {
-   Irssi::print("Warning: recieved non-extended JOIN message - account data may be wrong (account-notify.pl)");
-   return;
-  } 
-
-  if ($nick eq $server->{nick}) {
-    $target=$channel;
-  } else {
-    if ($account eq '*') {
-      delete $servers{$server->{tag}}->{'account_data'}->{$nick}{'account'};
-      Irssi::print("$nick is not authenticated") if(settings_get_bool('account_notify_debug'));
-    } else {
-      $servers{$server->{tag}}->{'account_data'}->{$nick}{'account'}=$account;
-      Irssi::print("$nick is now authenticated as $account") if(settings_get_bool('account_notify_debug'));
-    }
-    $servers{$server->{tag}}->{'account_data'}->{$nick}{'channels'}{$channel}=1;
-    return;
-  }
-
-  $server->redirect_event(
-			  'who', 1, '', 1, undef,
-			  {
-			   "event 354" => "redir account-notify_354",
-			   ""          => "event empty"
-			  }
-			 );
-
-  $server->send_raw("WHO $target %cna");
-}
-
-sub event_account {
-  my ($server, $account, $nick, $mask) = @_;
-  if ($account eq '*') { 
-    delete $servers{$server->{tag}}->{'account_data'}->{$nick}{'account'};
-    Irssi::print("$nick is not authenticated") if(settings_get_bool('account_notify_debug'));
-  } else {  
-    $servers{$server->{tag}}->{'account_data'}->{$nick}{'account'}=$account;
-    Irssi::print("$nick is authenticated as $account") if(settings_get_bool('account_notify_debug'));
-  }
-}
-sub event_354 {
-  my ($server, $data) = @_;
-  my ($me, $channel, $nick, $account) = split(/ +/, $data, 7);
-  return if ($nick eq $me);
-  if ($account eq '0') {
-    delete $servers{$server->{tag}}->{'account_data'}->{$nick}{'account'};
-    Irssi::print("$nick is not authenticated") if(settings_get_bool('account_notify_debug'));
-  } else {
-    $servers{$server->{tag}}->{'account_data'}->{$nick}{'account'}=$account;
-    Irssi::print("$nick is authenticated as $account") if(settings_get_bool('account_notify_debug'));
-  }
-  $servers{$server->{tag}}->{'account_data'}->{$nick}{'channels'}{$channel}=1;
-}
 
 sub format_account_notify_message {
   my ($server, $data, $nick, $address) = @_;
@@ -116,10 +52,10 @@ sub format_account_notify_notice {
 sub update_all_formats {
   my ($server,$nick) = @_;
   foreach my $format (@account_notify_message_formats) {
-    if (irclc($servers{$server->{tag}}->{'account_data'}->{$nick}{'account'}) eq irclc($nick)) {
+    if ($server->nicks_get_same($nick) && irclc($server->nicks_get_same($nick)->{'account'}) eq irclc($nick)) {
       update_account_notify($server,$format,colourise($nick).'$0');
-    } elsif ($servers{$server->{tag}}->{'account_data'}->{$nick}{'account'}) {
-      update_account_notify($server,$format,colourise($nick). '$0' . "($servers{$server->{tag}}->{'account_data'}->{$nick}{'account'})");
+    } elsif ($server->nicks_get_same($nick) && $server->nicks_get_same($nick)->{'account'} ne '*') {
+      update_account_notify($server,$format,colourise($nick). '$0' . "(" . $server->nicks_get_same($nick)->{'account'} . ")");
     } else {
       update_account_notify($server,$format,colourise($nick).'~$0');
     }
@@ -155,108 +91,17 @@ sub update_account_notify {
   my $replaced_format = replace_account_notify($identify_format,$nick);
   $server->command("^format $entry " . $replaced_format);
 }
-
-sub msg_nick {
-  my ($server, $newnick, $nick, $address) = @_;
-  if ($servers{$server->{tag}}->{'account_data'}->{$nick}) {
-    $servers{$server->{tag}}->{'account_data'}->{$newnick}=delete $servers{$server->{tag}}->{'account_data'}->{$nick};
-  }
+if(settings_get_bool('scrollback_format')) {
+Irssi::print('scrollback_format is ON, this script may behave unpredictably.');
+Irssi::print('To disable it, do /set scrollback_format OFF');
 }
-
-sub msg_quit {
-  my ($server, $nick, $address, $data) = @_;
-  if ($servers{$server->{tag}}->{'account_data'}->{$nick}) {
-    delete $servers{$server->{tag}}->{'account_data'}->{$nick};
-    Irssi::print("$nick has quit IRC, deleting record") if(settings_get_bool('account_notify_debug'));                                                   
-  }
-}
-
-sub msg_part {   
-  my ($server, $channel, $nick, $address, $data) = @_;
-  if ($nick eq $server->{nick}) {
-    foreach my $account (keys %{ $servers{$server->{tag}}->{'account_data'} }) {
-      delete $servers{$server->{tag}}->{'account_data'}->{$account}{'channels'}{$channel};
-      if (keys %{ $servers{$server->{tag}}->{'account_data'}->{$account}{'channels'} } == 0) {
-        delete $servers{$server->{tag}}->{'account_data'}->{$account};
-        Irssi::print("$account is no longer in any shared channels, deleting record") if(settings_get_bool('account_notify_debug'));
-      }
-    }
-    return;
-  }
-  if ($servers{$server->{tag}}->{'account_data'}->{$nick}) {
-    delete $servers{$server->{tag}}->{'account_data'}->{$nick}{'channels'}{$channel};
-  }   
-  if (ref($servers{$server->{tag}}->{'account_data'}->{$nick}{'channels'}) && keys %{ $servers{$server->{tag}}->{'account_data'}->{$nick}{'channels'} } == 0) {
-    delete $servers{$server->{tag}}->{'account_data'}->{$nick};
-    Irssi::print("$nick is no longer in any shared channels, deleting record") if(settings_get_bool('account_notify_debug'));
-  }
-}
-
-sub msg_kick {
-  my ($server, $channel, $nick, $kicker, $address, $data) = @_;
-  msg_part($server, $channel, $nick, $address, $data);
-}
-
-sub account_notify_connected {
-  my $server = shift;
-  $server->command("^quote cap req :account-notify extended-join");
-}
-
-sub account_notify_disconnected {
-  my $server = shift;
-  delete $servers{$server->{tag}};
-  Irssi::print("Disconnected from " . $server->{tag} . ", deleting server record." ) if(settings_get_bool('account_notify_debug'));
-}
-
-sub account_notify_cap_reply{
-        my ($server, $data, $server_name) = @_;
-        unless (ref($servers{$server->{tag}}) eq 'HASH') {
-                $servers{$server->{tag}} = {};
-                $servers{$server->{tag}}->{'ACCOUNT-NOTIFY'} = 0;
-                $servers{$server->{tag}}->{'EXTENDED-JOIN'} = 0;
-                $servers{$server->{tag}}->{'USES-CAP'} = 0;
-        }
-        if ($data =~ /ACK :.*account-notify/) {
-                $servers{$server->{tag}}->{'ACCOUNT-NOTIFY'} = 1;
-                $servers{$server->{tag}}->{'USES-CAP'} = 1;
-        }
-        if ($data =~ /ACK :.*extended-join/) {
-                $servers{$server->{tag}}->{'EXTENDED-JOIN'} = 1;
-                $servers{$server->{tag}}->{'USES-CAP'} = 1;
-        }
-	if ( $servers{$server->{tag}}->{'ACCOUNT-NOTIFY'}  && $servers{$server->{tag}}->{'EXTENDED-JOIN'} ) {
-          Irssi::print("Both CAPS enabled");
-          for my $channel ($server->channels()) {
-            my $target=$channel->{'name'};
-            $server->redirect_event(
-                          'who', 1, '', 1, undef,
-                          {
-                           "event 354" => "redir account-notify_354",
-                           ""          => "event empty"
-                          }
-            );
-            $server->send_raw("WHO $target %cna");
-          }
-	}
-}
-
-
-Irssi::signal_add( {
-		    'event join' => \&event_join,
-		    'event account' => \&event_account,
-		    'redir account-notify_354' => \&event_354,
+Irssi::signal_add_first( {
 		    'event privmsg', 'format_account_notify_message',
                     'event notice', 'format_account_notify_notice',
                     'ctcp msg', 'format_account_notify_ctcp',
                     'ctcp reply', 'format_account_notify_ctcp_reply',
-		    'message nick', \&msg_nick,
-		    'message quit', \&msg_quit,
-                    'message part', \&msg_part,
-                    'message kick', \&msg_kick,
-		    'event connected', \&account_notify_connected,
-                    'server disconnected', \&account_notify_disconnected,
-                    'event cap', \&account_notify_cap_reply
 		   });
+
 
 sub simple_hash {
   my ($string) = @_;
@@ -294,10 +139,6 @@ sub irclc {
   return $s;
 }
 
-foreach my $server (Irssi::servers()) {
-        %servers = ();
-        account_notify_connected($server);
-}
 
 # How we format the nick.  $0 is the nick we'll be formating.
 settings_add_str('account_notify','format_identified_nick','$0');
