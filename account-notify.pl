@@ -52,7 +52,9 @@ sub format_account_notify_notice {
 sub update_all_formats {
   my ($server,$nick) = @_;
   foreach my $format (@account_notify_message_formats) {
-    if ($server->nicks_get_same($nick) && irclc($server->nicks_get_same($nick)->{'account'}) eq irclc($nick)) {
+    if ($server->nicks_get_same($nick) && irclc($server->nicks_get_same($nick)->{'account'}) eq '') {
+      update_account_notify($server,$format,colourise($nick).'?$0');
+    } elsif ($server->nicks_get_same($nick) && irclc($server->nicks_get_same($nick)->{'account'}) eq irclc($nick)) {
       update_account_notify($server,$format,colourise($nick).'$0');
     } elsif ($server->nicks_get_same($nick) && $server->nicks_get_same($nick)->{'account'} ne '*') {
       update_account_notify($server,$format,colourise($nick). '$0' . "(" . $server->nicks_get_same($nick)->{'account'} . ")");
